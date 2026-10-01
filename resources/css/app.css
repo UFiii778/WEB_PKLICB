@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Warna brand SIM-PKL */
+    --color-forest: #03503b;
+    --color-forest-soft: #0a6a4d;
+    --color-leaf: #10b981;
+    --color-leaf-bright: #0fbf80;
+    --color-canvas: #f4f6f8;
+    --color-ink: #0b1f1a;
+}
+
+@layer base {
+    body {
+        background: var(--color-canvas);
+        color: var(--color-ink);
+    }
+    button:not(:disabled),
+    [role='button'] {
+        cursor: pointer;
+    }
+}
+
+@layer utilities {
+    .shadow-card {
+        box-shadow: 0 1px 2px rgb(15 40 30 / 0.04), 0 8px 24px -8px rgb(15 40 30 / 0.08);
+    }
+    .shadow-forest {
+        box-shadow: 0 18px 32px -14px rgb(3 80 59 / 0.55);
+    }
+    .scrollbar-thin {
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+    }
+}
+
+@keyframes pop-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to   { opacity: 1; transform: none; }
+}
+.animate-pop { animation: pop-in 0.18s ease-out; }
