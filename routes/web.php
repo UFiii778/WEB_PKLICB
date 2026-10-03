@@ -1,18 +1,48 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SiswaController;
 use App\Http\Controllers\MitraController;
 use App\Http\Controllers\AdminController;
 
-// Redirect root '/' ke halaman login
+// Redirect root '/' sesuai status login dan role user.
+// Ini mencegah redirect loop: / -> /login -> / -> /login
 Route::get('/', function () {
-    return redirect()->route('login');
-});
+    if (! Auth::check()) {
+        return redirect()->route('login');
+    }
+
+    return match (Auth::user()->role) {
+        'siswa' => redirect()->route('siswa.dashboard'),
+        'admin' => redirect()->route('admin.dashboard'),
+        'perusahaan', 'mitra', 'hrd' => redirect()->route('mitra.dashboard'),
+        default => redirect()->route('login')->withErrors([
+            'email' => 'Role akun tidak dikenali. Silakan login kembali.'
+        ]),
+    };
+})->name('home');
+
+// Tujuan standar middleware guest ketika user yang sudah login
+// mencoba membuka /login. Laravel akan mengarahkannya ke route ini.
+Route::get('/dashboard', function () {
+    if (! Auth::check()) {
+        return redirect()->route('login');
+    }
+
+    return match (Auth::user()->role) {
+        'siswa' => redirect()->route('siswa.dashboard'),
+        'admin' => redirect()->route('admin.dashboard'),
+        'perusahaan', 'mitra', 'hrd' => redirect()->route('mitra.dashboard'),
+        default => redirect()->route('login')->withErrors([
+            'email' => 'Role akun tidak dikenali. Silakan login kembali.'
+        ]),
+    };
+})->name('dashboard');
 
 // ==========================================
-// 1. ROUTE PUBLIC / GUEST (Tanpa Middleware Auth)
+// 1. ROUTE PUBLIC / GUEST
 // ==========================================
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -26,31 +56,36 @@ Route::middleware('guest')->group(function () {
 // ==========================================
 // 2. ROUTE TERPROTEKSI (Wajib Login)
 // ==========================================
-Route::middleware(['auth'])->group(function () {
+Route::middleware('auth')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    // Modul Siswa
-    Route::get('/siswa/dashboard', [SiswaController::class, 'dashboard'])->name('siswa.dashboard');
-    Route::post('/siswa/pengajuan', [SiswaController::class, 'storePengajuan'])->name('siswa.pengajuan.store');
+    // --- Akses Khusus Siswa ---
+    Route::middleware('ensureRole:siswa')->group(function () {
+        Route::get('/siswa/dashboard', [SiswaController::class, 'dashboard'])->name('siswa.dashboard');
+        Route::get('/siswa/mitra', [SiswaController::class, 'mitra'])->name('siswa.mitra');
+        Route::get('/siswa/pengajuan', [SiswaController::class, 'pengajuan'])->name('siswa.pengajuan');
+        Route::get('/siswa/jadwal', [SiswaController::class, 'jadwal'])->name('siswa.jadwal');
+        Route::get('/siswa/pengajuan/{id}/cetak-surat', [SiswaController::class, 'cetakSurat'])->name('siswa.pengajuan.cetak');
+        Route::post('/siswa/pengajuan', [SiswaController::class, 'storePengajuan'])->name('siswa.pengajuan.store');
+    });
 
-    // Modul Mitra / HRD
-    Route::get('/mitra/dashboard', [MitraController::class, 'dashboard'])->name('mitra.dashboard');
-    Route::post('/mitra/konfirmasi/{id}', [MitraController::class, 'konfirmasi'])->name('mitra.konfirmasi');
+    // --- Akses Khusus Mitra / HRD ---
+    Route::middleware('ensureRole:mitra,perusahaan,hrd')->group(function () {
+        Route::get('/mitra/dashboard', [MitraController::class, 'dashboard'])->name('mitra.dashboard');
+        Route::post('/mitra/konfirmasi/{id}', [MitraController::class, 'konfirmasi'])->name('mitra.konfirmasi');
+    });
 
-    // Modul Admin Hubin
-    Route::prefix('admin')->group(function () {
-        // Dashboard
+    // --- Akses Khusus Admin Hubin ---
+    Route::middleware('ensureRole:admin')->prefix('admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
-
-        // Halaman navigasi Admin Hubin
         Route::get('/mitra-siswa', [AdminController::class, 'mitra'])->name('admin.mitra');
         Route::get('/jadwal-pkl', [AdminController::class, 'jadwal'])->name('admin.jadwal');
         Route::get('/analisis-peminat', [AdminController::class, 'analisis'])->name('admin.analisis');
         Route::get('/data-siswa', [AdminController::class, 'siswa'])->name('admin.siswa');
 
-        // Aksi perusahaan & pengajuan
         Route::post('/perusahaan', [AdminController::class, 'storePerusahaan'])->name('admin.perusahaan.store');
+        Route::post('/perusahaan/{id}/toggle', [AdminController::class, 'toggleMitra'])->name('admin.perusahaan.toggle');
         Route::post('/pengajuan/{id}/status', [AdminController::class, 'updateStatus'])->name('admin.pengajuan.status');
         Route::get('/pengajuan/{id}/cetak-surat', [AdminController::class, 'cetakSurat'])->name('admin.pengajuan.cetak');
     });

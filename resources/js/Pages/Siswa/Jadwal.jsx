@@ -1,0 +1,8 @@
+import React from 'react';
+import SiswaLayout from '@/Layouts/SiswaLayout';
+import { CalendarDays, Building2, Clock } from 'lucide-react';
+export default function Jadwal({ pengajuan }) {
+    const aktif = pengajuan && ['disetujui_hubin', 'diterima_mitra'].includes(pengajuan.status);
+    return <SiswaLayout><div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"><h2 className="text-2xl font-extrabold">Jadwal PKL</h2><p className="mt-1 text-sm text-slate-400">Jadwal pelaksanaan PKL berdasarkan pengajuan kamu.</p></div>{!pengajuan ? <Empty /> : !aktif ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800"><Clock className="mb-2 h-6 w-6" /><b>Jadwal belum aktif.</b><p className="mt-1">Jadwal akan ditampilkan setelah pengajuan disetujui Hubin.</p></div> : <div className="grid grid-cols-1 gap-5 md:grid-cols-2"><div className="rounded-2xl bg-[#004d38] p-6 text-white shadow-sm"><CalendarDays className="h-8 w-8" /><p className="mt-5 text-xs text-emerald-100">PERIODE PKL</p><h3 className="mt-1 text-2xl font-black">{pengajuan.tgl_mulai} — {pengajuan.tgl_selesai}</h3></div><div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"><Building2 className="h-7 w-7 text-[#004d38]" /><p className="mt-4 text-xs font-bold text-slate-400">LOKASI PKL</p><h3 className="mt-1 text-xl font-extrabold">{pengajuan.perusahaan}</h3><p className="mt-2 text-sm text-slate-500">{pengajuan.alamat || 'Alamat belum tersedia'}</p></div></div>}</SiswaLayout>;
+}
+function Empty() { return <div className="rounded-2xl border border-slate-100 bg-white p-10 text-center shadow-sm"><CalendarDays className="mx-auto h-10 w-10 text-slate-300" /><p className="mt-3 font-bold">Belum ada jadwal PKL.</p></div>; }

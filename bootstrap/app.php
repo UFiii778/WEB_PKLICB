@@ -18,8 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
         ]);
 
-        $middleware->alias([
-            'role' => EnsureRole::class,
+       $middleware->alias([
+            'ensureRole' => EnsureRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
