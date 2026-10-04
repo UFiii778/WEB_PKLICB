@@ -9,19 +9,19 @@ import { initials } from '../lib/format';
 import Modal from '../Components/Modal';
 
 const MENU = [
-    { href: '/admin/dashboard',        label: 'Dashboard',        icon: LayoutGrid },
-    { href: '/admin/mitra-siswa',      label: 'Mitra & Siswa',    icon: Building2 },
-    { href: '/admin/jadwal-pkl',       label: 'Jadwal PKL',       icon: CalendarDays },
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid },
+    { href: '/admin/mitra-siswa', label: 'Mitra & Siswa', icon: Building2 },
+    { href: '/admin/jadwal-pkl', label: 'Jadwal PKL', icon: CalendarDays },
     { href: '/admin/analisis-peminat', label: 'Analisis Peminat', icon: ChartColumn },
-    { href: '/admin/data-siswa',       label: 'Data Siswa',       icon: Table2 },
+    { href: '/admin/data-siswa', label: 'Data Siswa', icon: Table2 },
 ];
 
 const SEARCH_HINT = {
-    '/admin/dashboard':        'Cari kode, siswa, atau perusahaan…',
-    '/admin/mitra-siswa':      'Cari perusahaan atau siswa…',
-    '/admin/jadwal-pkl':       'Cari siswa atau perusahaan di jadwal…',
+    '/admin/dashboard': 'Cari kode, siswa, atau perusahaan…',
+    '/admin/mitra-siswa': 'Cari perusahaan atau siswa…',
+    '/admin/jadwal-pkl': 'Cari siswa atau perusahaan di jadwal…',
     '/admin/analisis-peminat': 'Cari perusahaan…',
-    '/admin/data-siswa':       'Cari nama, kelas, atau perusahaan…',
+    '/admin/data-siswa': 'Cari nama, kelas, atau perusahaan…',
 };
 
 export default function AdminLayout({ children }) {
@@ -50,7 +50,24 @@ export default function AdminLayout({ children }) {
         return () => clearTimeout(t);
     }, [flash]);
 
-    const logout = () => router.post('/logout');
+    const logout = () => {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/logout';
+
+        const token = document.querySelector('meta[name="csrf-token"]');
+
+        if (token) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = '_token';
+            input.value = token.getAttribute('content');
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    };
 
     const sidebar = (
         <div className="flex h-full flex-col">
@@ -70,11 +87,10 @@ export default function AdminLayout({ children }) {
                         <Link
                             key={href}
                             href={href}
-                            className={`flex items-center gap-4 rounded-2xl px-5 py-3.5 text-[15px] font-bold transition ${
-                                active
-                                    ? 'bg-forest text-white shadow-forest'
-                                    : 'text-slate-500 hover:bg-slate-50 hover:text-forest'
-                            }`}
+                            className={`flex items-center gap-4 rounded-2xl px-5 py-3.5 text-[15px] font-bold transition ${active
+                                ? 'bg-forest text-white shadow-forest'
+                                : 'text-slate-500 hover:bg-slate-50 hover:text-forest'
+                                }`}
                         >
                             <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
                             {label}
@@ -166,9 +182,8 @@ export default function AdminLayout({ children }) {
             {/* Toast */}
             {toast && (
                 <div
-                    className={`animate-pop fixed bottom-6 right-6 z-[60] flex max-w-sm items-start gap-3 rounded-2xl px-5 py-4 text-sm font-semibold text-white shadow-2xl ${
-                        toast.error ? 'bg-rose-600' : 'bg-forest'
-                    }`}
+                    className={`animate-pop fixed bottom-6 right-6 z-[60] flex max-w-sm items-start gap-3 rounded-2xl px-5 py-4 text-sm font-semibold text-white shadow-2xl ${toast.error ? 'bg-rose-600' : 'bg-forest'
+                        }`}
                 >
                     {toast.error ? <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" /> : <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />}
                     <span>{toast.text}</span>
