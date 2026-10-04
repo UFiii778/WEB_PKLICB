@@ -72,8 +72,14 @@ Route::middleware('auth')->group(function () {
 
     // --- Akses Khusus Mitra / HRD ---
     Route::middleware('ensureRole:mitra,perusahaan,hrd')->group(function () {
-        Route::get('/mitra/dashboard', [MitraController::class, 'dashboard'])->name('mitra.dashboard');
-        Route::post('/mitra/konfirmasi/{id}', [MitraController::class, 'konfirmasi'])->name('mitra.konfirmasi');
+        Route::get('/mitra/dashboard', [MitraController::class, 'dashboard'])
+            ->name('mitra.dashboard');
+
+        Route::post('/mitra/konfirmasi/{id}', [MitraController::class, 'konfirmasi'])
+            ->name('mitra.konfirmasi');
+
+        Route::put('/mitra/profil', [MitraController::class, 'updateProfile'])
+            ->name('mitra.profil.update');
     });
 
     // --- Akses Khusus Admin Hubin ---
@@ -89,5 +95,4 @@ Route::middleware('auth')->group(function () {
         Route::post('/pengajuan/{id}/status', [AdminController::class, 'updateStatus'])->name('admin.pengajuan.status');
         Route::get('/pengajuan/{id}/cetak-surat', [AdminController::class, 'cetakSurat'])->name('admin.pengajuan.cetak');
     });
-
 });

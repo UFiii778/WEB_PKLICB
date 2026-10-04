@@ -9,6 +9,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 
 class AdminController extends Controller
@@ -72,7 +73,6 @@ class AdminController extends Controller
 
         $pengajuan = PengajuanPkl::findOrFail($id);
 
-        // Hanya pengajuan berstatus pending yang boleh divalidasi Hubin.
         if ($pengajuan->status !== PengajuanPkl::PENDING) {
             return back()->with('error', 'Pengajuan ini sudah divalidasi sebelumnya.');
         }
@@ -109,18 +109,18 @@ class AdminController extends Controller
     {
         $pengajuan = $this->allPengajuan()->groupBy('perusahaan_id');
 
-        // Nama HRD dicocokkan lewat nomor kontak (sama seperti MitraController)
-        $hrdByPhone = User::where('role', 'perusahaan')->pluck('name', 'no_hp');
-
-        $mitra = Perusahaan::orderBy('nama_perusahaan')->get()->map(function ($p) use ($pengajuan, $hrdByPhone) {
+        // Mengambil data perusahaan beserta relasi user_id (akun HRD)
+        $mitra = Perusahaan::with('user')->orderBy('nama_perusahaan')->get()->map(function ($p) use ($pengajuan) {
             $list = $pengajuan->get($p->id, collect());
 
             return [
                 'id'            => $p->id,
+                'user_id'       => $p->user_id,
                 'nama'          => $p->nama_perusahaan,
                 'alamat'        => $p->alamat_lengkap,
                 'kontak_hrd'    => $p->kontak_hrd,
-                'nama_hrd'      => $hrdByPhone[$p->kontak_hrd] ?? null,
+                'nama_hrd'      => $p->user?->name ?? 'Belum ada akun',
+                'email_hrd'     => $p->user?->email ?? '-',
                 'kuota_sisa'    => (int) $p->kuota_tersedia,
                 'status_mitra'  => $p->status_mitra,
                 'siswa_diterima' => $list->where('status', PengajuanPkl::DITERIMA_MITRA)
@@ -144,6 +144,29 @@ class AdminController extends Controller
         Perusahaan::create($validated + ['status_mitra' => 'aktif']);
 
         return back()->with('success', 'Perusahaan mitra berhasil ditambahkan!');
+    }
+
+    /** Membantu Admin membuatkan akun login HRD untuk perusahaan tertentu */
+    public function buatAkunHrd(Request $request, $id)
+    {
+        $request->validate([
+            'email'    => 'required|email|unique:users,email',
+            'password' => 'required|string|min:8',
+        ]);
+
+        $perusahaan = Perusahaan::findOrFail($id);
+
+        $user = User::create([
+            'name'     => 'HRD ' . $perusahaan->nama_perusahaan,
+            'email'    => $request->email,
+            'password' => Hash::make($request->password),
+            'role'     => 'perusahaan',
+            'no_hp'    => $perusahaan->kontak_hrd,
+        ]);
+
+        $perusahaan->update(['user_id' => $user->id]);
+
+        return back()->with('success', "Akun HRD untuk {$perusahaan->nama_perusahaan} berhasil dibuat!");
     }
 
     public function toggleMitra($id)
@@ -185,7 +208,7 @@ class AdminController extends Controller
                 'status_mitra'    => $p->status_mitra,
                 'kuota_sisa'      => (int) $p->kuota_tersedia,
                 'total_pengajuan' => $list->count(),
-                'peminat'         => $list->sum(fn ($x) => 1 + $x->anggota->count()), // jumlah siswa
+                'peminat'         => $list->sum(fn ($x) => 1 + $x->anggota->count()),
                 'pending'         => $siswa([PengajuanPkl::PENDING]),
                 'disetujui'       => $siswa([PengajuanPkl::DISETUJUI_HUBIN]),
                 'diterima'        => $siswa([PengajuanPkl::DITERIMA_MITRA]),
@@ -204,7 +227,6 @@ class AdminController extends Controller
     // =========================================================
     public function siswa()
     {
-        // Peta siswa_id => daftar pengajuan (sebagai ketua ATAU anggota), tanpa N+1 query
         $map = [];
         foreach ($this->allPengajuan() as $p) {
             $ids = $p->anggota->pluck('siswa_id')->push($p->ketua_siswa_id)->unique();
@@ -217,7 +239,6 @@ class AdminController extends Controller
             ->map(function ($s) use ($map) {
                 $list = collect($map[$s->id] ?? []);
 
-                // Utamakan pengajuan yang masih hidup (bukan ditolak); jika tak ada, ambil yang terbaru
                 $pilih = $list->first(fn ($p) => ! in_array($p->status, self::STATUS_DITOLAK))
                     ?? $list->first();
 
@@ -227,7 +248,7 @@ class AdminController extends Controller
                     'nis'        => $s->nis_nip,
                     'kelas'      => $s->kelas ?: '-',
                     'jurusan'    => $this->jurusanDariKelas($s->kelas),
-                    'perusahaan' => $pilih?->perusahaan?->nama_perusahaan,   // null => "belum mengajukan"
+                    'perusahaan' => $pilih?->perusahaan?->nama_perusahaan,
                     'status'     => $pilih?->status ?? 'belum_mengajukan',
                     'alasan'     => $pilih?->alasan_penolakan,
                 ];
@@ -240,7 +261,6 @@ class AdminController extends Controller
     // HELPER
     // =========================================================
 
-    /** Semua pengajuan (terbaru dulu) beserta relasi yang dibutuhkan halaman admin. */
     private function allPengajuan(): Collection
     {
         return PengajuanPkl::with(['ketua', 'perusahaan', 'anggota.siswa'])->latest()->get();
@@ -283,7 +303,6 @@ class AdminController extends Controller
         ];
     }
 
-    /** "XII RPL 1" => "Rekayasa Perangkat Lunak" (atau "RPL" jika singkatan tak dikenal). */
     private function jurusanDariKelas(?string $kelas): string
     {
         if (! $kelas || ! preg_match('/^(?:XII|XI|X)\s+(.+?)\s*\d*$/i', trim($kelas), $m)) {

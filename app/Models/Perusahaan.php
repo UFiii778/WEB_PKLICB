@@ -9,13 +9,24 @@ class Perusahaan extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'user_id', // <--- Tambahkan kolom ini
+        'nama_perusahaan',
+        'alamat_lengkap',
+        'kontak_hrd',
+        'kuota_tersedia',
+        'status_mitra',
+    ];
 
-    /**
-     * Relasi ke model PengajuanPkl (1 Perusahaan bisa punya banyak Pengajuan PKL)
-     */
+    // Relasi ke User
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    // Relasi ke Pengajuan PKL
     public function pengajuanPkl()
     {
-        return $this->hasMany(PengajuanPkl::class, 'perusahaan_id');
+        return $this->hasMany(PengajuanPkl::class);
     }
 }

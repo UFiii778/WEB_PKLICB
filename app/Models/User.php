@@ -47,4 +47,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(AnggotaKelompok::class, 'siswa_id');
     }
+
+    public function perusahaan()
+    {
+        return $this->hasOne(Perusahaan::class);
+    }
 }
