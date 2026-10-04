@@ -2,40 +2,54 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use App\Models\Perusahaan;
+use App\Models\PengajuanPkl;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SiswaController;
 use App\Http\Controllers\MitraController;
 use App\Http\Controllers\AdminController;
 
-// Redirect root '/' sesuai status login dan role user.
-// Ini mencegah redirect loop: / -> /login -> / -> /login
-Route::get('/', function () {
-    if (! Auth::check()) {
-        return redirect()->route('login');
-    }
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+*/
 
-    return match (Auth::user()->role) {
-        'siswa' => redirect()->route('siswa.dashboard'),
-        'admin' => redirect()->route('admin.dashboard'),
-        'perusahaan', 'mitra', 'hrd' => redirect()->route('mitra.dashboard'),
-        default => redirect()->route('login')->withErrors([
-            'email' => 'Role akun tidak dikenali. Silakan login kembali.'
-        ]),
-    };
+// ==========================================
+// LANDING PAGE (Public / Tampilan Awal)
+// ==========================================
+Route::get('/', function () {
+    // Ambil statistik & data mitra aktif untuk ditampilkan di landing page
+    $stats = [
+        'total_mitra'     => Perusahaan::where('status_mitra', 'aktif')->count(),
+        'total_pengajuan' => PengajuanPkl::count(),
+        'siswa_terpenuhi' => PengajuanPkl::whereIn('status', ['diterima', 'diterima_mitra'])->count(),
+    ];
+
+    $mitraList = Perusahaan::where('status_mitra', 'aktif')
+        ->select('id', 'nama_perusahaan', 'alamat_lengkap', 'kuota_tersedia')
+        ->take(6)
+        ->get();
+
+    return Inertia::render('Welcome', [
+        'auth'      => ['user' => Auth::user()],
+        'stats'     => $stats,
+        'mitraList' => $mitraList,
+    ]);
 })->name('home');
 
-// Tujuan standar middleware guest ketika user yang sudah login
-// mencoba membuka /login. Laravel akan mengarahkannya ke route ini.
+// Route khusus pengarah dashboard berdasarkan role user
 Route::get('/dashboard', function () {
     if (! Auth::check()) {
         return redirect()->route('login');
     }
 
     return match (Auth::user()->role) {
-        'siswa' => redirect()->route('siswa.dashboard'),
-        'admin' => redirect()->route('admin.dashboard'),
+        'siswa'                      => redirect()->route('siswa.dashboard'),
+        'admin'                      => redirect()->route('admin.dashboard'),
         'perusahaan', 'mitra', 'hrd' => redirect()->route('mitra.dashboard'),
-        default => redirect()->route('login')->withErrors([
+        default                      => redirect()->route('login')->withErrors([
             'email' => 'Role akun tidak dikenali. Silakan login kembali.'
         ]),
     };
